@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel ecosystem-risk-panel">
+    <h2>🌊 Multi-Species Marine Risk Intelligence System</h2>
+    <div class="forecast-hero">
+        <div>
+            <p class="forecast-kicker">What-if mode</p>
+            <h3>Adjust one variable, then compare the MEHI shift against the current baseline.</h3>
+            <p class="forecast-hero-copy">The left side shows the current ecosystem state. The right side is the scenario lab for dragging values and saving comparisons.</p>
+        </div>
+        <div class="forecast-hero-stats">
+            <span><strong>Baseline</strong> {{ mehi }}</span>
+            <span><strong>Alert</strong> {{ alert }}</span>
+            <span><strong>Horizon</strong> 1M / 3M</span>
+        </div>
+    </div>
+
+    <div class="forecast-workbench">
+        <section class="baseline-panel">
+            <div class="panel-headline">
+                <h3>Current Baseline</h3>
+                <p>Live environmental snapshot used by the model.</p>
+            </div>
+            <div class="env-grid">
+                <article class="env-card">
+                    <span class="env-label">Sea Surface Temp</span>
+                    <span class="env-value" id="envSstValue">{{ env_actuals.sst.value }} {{ env_actuals.sst.unit }}</span>
+                    <span class="env-z" id="envSstZ">(z = {{ env_actuals.sst.z }})</span>
+                </article>
+                <article class="env-card">
+                    <span class="env-label">Chlorophyll</span>
+                    <span class="env-value" id="envChlValue">{{ env_actuals.chl.value }} {{ env_actuals.chl.unit }}</span>
+                    <span class="env-z" id="envChlZ">(z = {{ env_actuals.chl.z }})</span>
+                </article>
+                <article class="env-card">
+                    <span class="env-label">Oxygen</span>
+                    <span class="env-value" id="envO2Value">{{ env_actuals.o2.value }} {{ env_actuals.o2.unit }}</span>
+                    <span class="env-z" id="envO2Z">(z = {{ env_actuals.o2.z }})</span>
+                </article>
+                <article class="env-card">
+                    <span class="env-label">Salinity</span>
+                    <span class="env-value" id="envSalinityValue">{{ env_actuals.salinity.value }} {{ env_actuals.salinity.unit }}</span>
+                    <span class="env-z" id="envSalinityZ">(z = {{ env_actuals.salinity.z }})</span>
+                </article>
+            </div>
+
+            <form action="{{ url_for('predict_ecosystem') }}" method="post" class="ecosystem-form">
+                <button type="submit" class="forecast-btn">Predict Ecosystem Risk</button>
+            </form>
+            <p class="window-note">Prediction based on historical environmental patterns.</p>
+            <div class="forecast-horizon" aria-label="Forecast horizon">
+                <strong>Forecast Horizon</strong>
+                <span>Short-Term: 1 Month</span>
+                <span>Medium-Term: 3 Months</span>
+            </div>
+        </section>
+
+        <section class="scenario-panel scenario-panel-spotlight">
+            <div class="panel-headline">
+                <h3>What-if Scenario Simulator</h3>
+                <p>Drag the sliders to see how MEHI moves from the baseline.</p>
+            </div>
+            <p class="sim-subtitle">Change any input below to see how the model shifts MEHI from the current baseline.</p>
+
+            <div class="sim-grid">
+                <label class="sim-control">
+                    <span class="sim-control-head">Sea Surface Temp (deg C) <strong id="scenarioSstValue">{{ env_actuals.sst.value }}</strong></span>
+                    <input type="range" id="scenarioSst" class="sim-range" step="0.1" min="0" max="40" value="{{ env_actuals.sst.value }}" />
+                    <span class="sim-range-meta">Drag from 0 to 40</span>
+                </label>
+                <label class="sim-control">
+                    <span class="sim-control-head">Chlorophyll (mg/m3) <strong id="scenarioChlValue">{{ env_actuals.chl.value }}</strong></span>
+                    <input type="range" id="scenarioChl" class="sim-range" step="0.001" min="0" max="10" value="{{ env_actuals.chl.value }}" />
+                    <span class="sim-range-meta">Drag from 0 to 10</span>
+                </label>
+                <label class="sim-control">
+                    <span class="sim-control-head">Oxygen (mg/L) <strong id="scenarioO2Value">{{ env_actuals.o2.value }}</strong></span>
+                    <input type="range" id="scenarioO2" class="sim-range" step="0.1" min="0" max="20" value="{{ env_actuals.o2.value }}" />
+                    <span class="sim-range-meta">Drag from 0 to 20</span>
+                </label>
+                <label class="sim-control">
+                    <span class="sim-control-head">Salinity (PSU) <strong id="scenarioSalinityValue">{{ env_actuals.salinity.value }}</strong></span>
+                    <input type="range" id="scenarioSalinity" class="sim-range" step="0.1" min="0" max="45" value="{{ env_actuals.salinity.value }}" />
+                    <span class="sim-range-meta">Drag from 0 to 45</span>
+                </label>
+            </div>
+
+            <div class="forecast-actions">
+                <button type="button" class="forecast-btn" id="runScenarioBtn">Run What-if</button>
+                <button type="button" class="forecast-btn compact" id="saveScenarioBtn">Save Scenario</button>
+                <button type="button" class="forecast-btn compact" id="resetScenarioBtn">Reset Baseline</button>
+            </div>
+
+            <div class="forecast-result" id="scenarioResult">
+                <div class="forecast-item">
+                    <span class="forecast-label">Current Baseline MEHI</span>
+                    <span class="forecast-value" id="baselineMehiValue">{{ mehi }}</span>
+                </div>
+                <div class="forecast-item">
+                    <span class="forecast-label">Scenario MEHI</span>
+                    <span class="forecast-value" id="scenarioMehiValue">{{ mehi }}</span>
+                </div>
+                <div class="forecast-item">
+                    <span class="forecast-label">MEHI Change</span>
+                    <span class="forecast-value" id="scenarioDeltaValue">0.00</span>
+                </div>
+                <div class="forecast-item">
+                    <span class="forecast-label">Alert Shift</span>
+                    <span class="forecast-value" id="scenarioAlertValue">{{ alert }}</span>
+                </div>
+            </div>
+
+            <p class="scenario-summary" id="scenarioSummaryText">Use the controls above to compare the new MEHI against the current baseline.</p>
+
+            <div class="species-grid" id="scenarioSpeciesGrid"></div>
+
+            <canvas id="scenarioRiskChart"></canvas>
+
+            <details class="saved-scenarios-wrap">
+                <summary class="saved-scenarios-header">
+                    <h3>Saved Scenarios</h3>
+                    <span id="savedScenarioCount">0 saved</span>
+                </summary>
+                <div id="savedScenariosList" class="saved-scenarios-list"></div>
+            </details>
+        </section>
+    </div>
+
+    {% if ecosystem_prediction %}
+    <section class="results-stack">
+        <div class="species-grid" id="forecastSpeciesGrid">
+            {% for item in ecosystem_prediction.species_cards %}
+            <article class="species-card">
+                <div class="species-title-row">
+                    <span class="species-title">{{ item.label }} Risk</span>
+                    <span class="status-dot {{ item.status_class }}"></span>
+                </div>
+                <div class="species-score">{{ item.score }}%</div>
+                <div class="species-status {{ item.status_class }}">{{ item.status }}</div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <div class="overall-summary" id="forecastOverallSummary">
+            <h3>🌊 Ecosystem Health Summary</h3>
+            <p>Overall Ecosystem Condition: <strong>{{ ecosystem_prediction.overall_condition }}</strong></p>
+            <p>{{ ecosystem_prediction.at_risk_count }} Species at Risk · Avg Score: {{ ecosystem_prediction.average_score }}</p>
+        </div>
+
+        <div class="overall-summary comparison-table-wrap" id="speciesComparisonWrap">
+            <h3>Ecosystem Change Analysis</h3>
+            <p class="comparison-subtitle">(Current vs Predicted)</p>
+            <p class="comparison-context">Comparison between current ecosystem state and predicted future conditions.</p>
+            <table class="comparison-table" id="speciesComparisonTable">
+                <thead>
+                    <tr>
+                        <th>Species</th>
+                        <th>Current</th>
+                        <th>Predicted</th>
+                        <th>Change</th>
+                    </tr>
+                </thead>
+                <tbody id="speciesComparisonBody">
+                    {% for row in species_comparison_rows %}
+                    <tr>
+                        <td>{{ row.species }}</td>
+                        <td>{{ row.current }}%</td>
+                        <td>{{ row.predicted }}%</td>
+                        <td class="change-cell {{ 'change-up' if row.change_direction == 'up' else 'change-down' if row.change_direction == 'down' else '' }}">
+                            {% if row.change_direction == "up" %}
+                            🔺 +{{ row.change_abs }}%
+                            {% elif row.change_direction == "down" %}
+                            🔻 -{{ row.change_abs }}%
+                            {% else %}
+                            ➖ 0.0%
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="comparison-insight" id="speciesComparisonInsight">{{ species_change_insight }}</p>
+        </div>
+
+        <div class="reliability-box">
+            <h3>Prediction Confidence</h3>
+            <p class="reliability-caption">Model Performance:</p>
+            <ul>
+                {% for item in ecosystem_prediction.species_cards %}
+                <li>{{ item.label }}: R² = {{ "%.2f"|format(item.r2) }} ({{ item.reliability }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <canvas id="speciesRiskChart"></canvas>
+    </section>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const speciesLabels = JSON.parse('{{ species_labels | tojson | safe }}');
+    const speciesScores = JSON.parse('{{ species_scores | tojson | safe }}');
+    const speciesGrid = document.getElementById("forecastSpeciesGrid");
+    const overallSummary = document.getElementById("forecastOverallSummary");
+    const comparisonBody = document.getElementById("speciesComparisonBody");
+    const comparisonInsight = document.getElementById("speciesComparisonInsight");
+    const baselineMehiValue = document.getElementById("baselineMehiValue");
+    const scenarioMehiValue = document.getElementById("scenarioMehiValue");
+    const scenarioDeltaValue = document.getElementById("scenarioDeltaValue");
+    const scenarioAlertValue = document.getElementById("scenarioAlertValue");
+    const scenarioSummaryText = document.getElementById("scenarioSummaryText");
+    const scenarioSpeciesGrid = document.getElementById("scenarioSpeciesGrid");
+    const savedScenariosList = document.getElementById("savedScenariosList");
+    const savedScenarioCount = document.getElementById("savedScenarioCount");
+    const scenarioSstInput = document.getElementById("scenarioSst");
+    const scenarioChlInput = document.getElementById("scenarioChl");
+    const scenarioO2Input = document.getElementById("scenarioO2");
+    const scenarioSalinityInput = document.getElementById("scenarioSalinity");
+    const scenarioSstValue = document.getElementById("scenarioSstValue");
+    const scenarioChlValue = document.getElementById("scenarioChlValue");
+    const scenarioO2Value = document.getElementById("scenarioO2Value");
+    const scenarioSalinityValue = document.getElementById("scenarioSalinityValue");
+    const runScenarioBtn = document.getElementById("runScenarioBtn");
+    const saveScenarioBtn = document.getElementById("saveScenarioBtn");
+    const resetScenarioBtn = document.getElementById("resetScenarioBtn");
+    const scenarioRiskCanvas = document.getElementById("scenarioRiskChart");
+    const scenarioStorageKey = "marine_saved_scenarios";
+    const baselineMehi = Number("{{ mehi }}") || 0;
+    const baselineAlert = "{{ alert }}";
+    const baselineScenarioInputs = {
+        sst: Number("{{ env_actuals.sst.value }}") || 0,
+        chl: Number("{{ env_actuals.chl.value }}") || 0,
+        o2: Number("{{ env_actuals.o2.value }}") || 0,
+        salinity: Number("{{ env_actuals.salinity.value }}") || 0,
+    };
+    let scenarioRiskChart = null;
+    let latestScenarioResult = null;
+
+    const statusClassFromLabel = (status) => {
+        if (status === "Stable") return "status-stable";
+        if (status === "Warning") return "status-warning";
+        return "status-critical";
+    };
+
+    const renderLiveForecast = (prediction) => {
+        if (!prediction || !speciesGrid || !overallSummary) {
+            return;
+        }
+
+        const cards = prediction.species_cards.map((item) => `
+            <article class="species-card">
+                <div class="species-title-row">
+                    <span class="species-title">${item.label} Risk</span>
+                    <span class="status-dot ${item.status_class}"></span>
+                </div>
+                <div class="species-score">${item.score}%</div>
+                <div class="species-status ${statusClassFromLabel(item.status)}">${item.status}</div>
+            </article>
+        `).join("");
+
+        speciesGrid.innerHTML = cards;
+        overallSummary.innerHTML = `
+            <h3>🌊 Ecosystem Health Summary</h3>
+            <p>Overall Ecosystem Condition: <strong>${prediction.overall_condition}</strong></p>
+            <p>${prediction.at_risk_count} Species at Risk · Avg Score: ${prediction.average_score}</p>
+        `;
+
+        if (speciesRiskCanvas && prediction.species_labels && prediction.species_scores && speciesRiskCanvas.chartInstance) {
+            speciesRiskCanvas.chartInstance.data.labels = prediction.species_labels;
+            speciesRiskCanvas.chartInstance.data.datasets[0].data = prediction.species_scores;
+            speciesRiskCanvas.chartInstance.update();
+        }
+    };
+
+    const readScenarioInputs = () => ({
+        sst: Number.parseFloat(scenarioSstInput?.value || baselineScenarioInputs.sst) || baselineScenarioInputs.sst,
+        chl: Number.parseFloat(scenarioChlInput?.value || baselineScenarioInputs.chl) || baselineScenarioInputs.chl,
+        o2: Number.parseFloat(scenarioO2Input?.value || baselineScenarioInputs.o2) || baselineScenarioInputs.o2,
+        salinity: Number.parseFloat(scenarioSalinityInput?.value || baselineScenarioInputs.salinity) || baselineScenarioInputs.salinity,
+    });
+
+    const updateScenarioValueLabels = () => {
+        if (scenarioSstValue && scenarioSstInput) scenarioSstValue.textContent = Number.parseFloat(scenarioSstInput.value).toFixed(1);
+        if (scenarioChlValue && scenarioChlInput) scenarioChlValue.textContent = Number.parseFloat(scenarioChlInput.value).toFixed(3);
+        if (scenarioO2Value && scenarioO2Input) scenarioO2Value.textContent = Number.parseFloat(scenarioO2Input.value).toFixed(1);
+        if (scenarioSalinityValue && scenarioSalinityInput) scenarioSalinityValue.textContent = Number.parseFloat(scenarioSalinityInput.value).toFixed(1);
+    };
+
+    const renderScenarioSpecies = (prediction) => {
+        if (!scenarioSpeciesGrid || !prediction || !Array.isArray(prediction.species_cards)) {
+            return;
+        }
+
+        scenarioSpeciesGrid.innerHTML = prediction.species_cards.map((item) => `
+            <article class="species-card">
+                <div class="species-title-row">
+                    <span class="species-title">${item.label} Risk</span>
+                    <span class="status-dot ${item.status_class}"></span>
+                </div>
+                <div class="species-score">${item.score}%</div>
+                <div class="species-status ${item.status_class}">${item.status}</div>
+            </article>
+        `).join("");
+    };
+
+    const updateScenarioChart = (baselineValue, scenarioValue) => {
+        if (!scenarioRiskCanvas) {
+            return;
+        }
+
+        if (!scenarioRiskChart) {
+            scenarioRiskChart = new Chart(scenarioRiskCanvas.getContext("2d"), {
+                type: "bar",
+                data: {
+                    labels: ["Baseline", "Scenario"],
+                    datasets: [{
+                        label: "MEHI",
+                        data: [baselineValue, scenarioValue],
+                        borderColor: "#0f766e",
+                        backgroundColor: ["rgba(15, 118, 110, 0.25)", "rgba(29, 78, 216, 0.28)"],
+                        borderWidth: 1.5,
+                        borderRadius: 6,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: "top" } },
+                    scales: {
+                        x: { grid: { color: "rgba(148, 163, 184, 0.12)" } },
+                        y: { min: 0, max: 100, grid: { color: "rgba(148, 163, 184, 0.12)" } },
+                    },
+                },
+            });
+            return;
+        }
+
+        scenarioRiskChart.data.datasets[0].data = [baselineValue, scenarioValue];
+        scenarioRiskChart.update();
+    };
+
+    const getSavedScenarios = () => {
+        try {
+            return JSON.parse(localStorage.getItem(scenarioStorageKey) || "[]");
+        } catch (error) {
+            return [];
+        }
+    };
+
+    const setSavedScenarios = (scenarios) => {
+        localStorage.setItem(scenarioStorageKey, JSON.stringify(scenarios));
+    };
+
+    const renderSavedScenarios = () => {
+        if (!savedScenariosList || !savedScenarioCount) {
+            return;
+        }
+
+        const scenarios = getSavedScenarios();
+        savedScenarioCount.textContent = `${scenarios.length} saved`;
+
+        if (scenarios.length === 0) {
+            savedScenariosList.innerHTML = `<p class="sim-subtitle">No saved scenarios yet.</p>`;
+            return;
+        }
+
+        savedScenariosList.innerHTML = scenarios.map((item, index) => `
+            <article class="saved-scenario-card">
+                <div class="saved-scenario-head">
+                    <strong>${item.label || `Scenario ${index + 1}`}</strong>
+                    <span>${item.scenario_alert || "UNKNOWN"}</span>
+                </div>
+                <div class="saved-scenario-meta">MEHI ${item.scenario_mehi} · Change ${item.mehi_change >= 0 ? "+" : ""}${item.mehi_change}</div>
+                <div class="saved-scenario-meta">SST ${item.inputs.sst} · CHL ${item.inputs.chl} · O2 ${item.inputs.o2} · Salinity ${item.inputs.salinity}</div>
+                <div class="saved-scenario-actions">
+                    <button type="button" class="preset-btn" data-load-scenario="${index}">Load</button>
+                    <button type="button" class="preset-btn" data-delete-scenario="${index}">Delete</button>
+                </div>
+            </article>
+        `).join("");
+
+        savedScenariosList.querySelectorAll("[data-load-scenario]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const selectedScenario = getSavedScenarios()[Number(button.getAttribute("data-load-scenario"))];
+                if (!selectedScenario) return;
+
+                scenarioSstInput.value = selectedScenario.inputs.sst;
+                scenarioChlInput.value = selectedScenario.inputs.chl;
+                scenarioO2Input.value = selectedScenario.inputs.o2;
+                scenarioSalinityInput.value = selectedScenario.inputs.salinity;
+                runScenarioSimulation();
+            });
+        });
+
+        savedScenariosList.querySelectorAll("[data-delete-scenario]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const scenariosToKeep = getSavedScenarios();
+                scenariosToKeep.splice(Number(button.getAttribute("data-delete-scenario")), 1);
+                setSavedScenarios(scenariosToKeep);
+                renderSavedScenarios();
+            });
+        });
+    };
+
+    const renderScenarioResult = (result, inputs) => {
+        if (!result) {
+            return;
+        }
+
+        latestScenarioResult = { result, inputs };
+
+        const baselineValue = Number(result.baseline_mehi ?? baselineMehi);
+        const scenarioValue = Number(result.scenario_mehi ?? baselineMehi);
+        const deltaValue = Number(result.mehi_change ?? (scenarioValue - baselineValue));
+        const deltaPrefix = deltaValue > 0 ? "+" : "";
+
+        if (baselineMehiValue) baselineMehiValue.textContent = baselineValue.toFixed(2);
+        if (scenarioMehiValue) scenarioMehiValue.textContent = scenarioValue.toFixed(2);
+        if (scenarioDeltaValue) scenarioDeltaValue.textContent = `${deltaPrefix}${deltaValue.toFixed(2)}`;
+        if (scenarioAlertValue) scenarioAlertValue.textContent = result.scenario_alert || baselineAlert;
+
+        if (scenarioSummaryText) {
+            const direction = deltaValue > 0 ? "improved" : deltaValue < 0 ? "declined" : "stayed flat";
+            scenarioSummaryText.textContent = `MEHI ${direction} by ${Math.abs(deltaValue).toFixed(2)} points relative to the current baseline.`;
+        }
+
+        renderScenarioSpecies(result.ecosystem_prediction);
+        updateScenarioChart(baselineValue, scenarioValue);
+    };
+
+    const runScenarioSimulation = async () => {
+        if (!runScenarioBtn) {
+            return;
+        }
+
+        const inputs = readScenarioInputs();
+        runScenarioBtn.disabled = true;
+        runScenarioBtn.textContent = "Running...";
+
+        try {
+            const response = await fetch("{{ url_for('simulate_scenario') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(inputs),
+            });
+
+            const payload = await response.json();
+            if (!payload.ok) {
+                throw new Error(payload.error || "Simulation failed.");
+            }
+
+            renderScenarioResult(payload.result, inputs);
+        } catch (error) {
+            if (scenarioSummaryText) {
+                scenarioSummaryText.textContent = error.message || "Simulation failed for the selected values.";
+            }
+        } finally {
+            runScenarioBtn.disabled = false;
+            runScenarioBtn.textContent = "Run What-if";
+        }
+    };
+
+    const saveCurrentScenario = () => {
+        if (!latestScenarioResult) {
+            return;
+        }
+
+        const scenarios = getSavedScenarios();
+        const timestamp = new Date().toLocaleString();
+        scenarios.unshift({
+            label: `Scenario ${scenarios.length + 1} · ${timestamp}`,
+            scenario_mehi: latestScenarioResult.result.scenario_mehi,
+            mehi_change: latestScenarioResult.result.mehi_change,
+            scenario_alert: latestScenarioResult.result.scenario_alert,
+            inputs: latestScenarioResult.inputs,
+        });
+
+        setSavedScenarios(scenarios.slice(0, 12));
+        renderSavedScenarios();
+    };
+
+    const resetScenarioInputs = () => {
+        scenarioSstInput.value = baselineScenarioInputs.sst;
+        scenarioChlInput.value = baselineScenarioInputs.chl;
+        scenarioO2Input.value = baselineScenarioInputs.o2;
+        scenarioSalinityInput.value = baselineScenarioInputs.salinity;
+        updateScenarioValueLabels();
+        runScenarioSimulation();
+    };
+
+    if (runScenarioBtn) {
+        runScenarioBtn.addEventListener("click", runScenarioSimulation);
+    }
+
+    if (saveScenarioBtn) {
+        saveScenarioBtn.addEventListener("click", saveCurrentScenario);
+    }
+
+    if (resetScenarioBtn) {
+        resetScenarioBtn.addEventListener("click", resetScenarioInputs);
+    }
+
+    [scenarioSstInput, scenarioChlInput, scenarioO2Input, scenarioSalinityInput].forEach((input) => {
+        if (!input) {
+            return;
+        }
+
+        input.addEventListener("input", updateScenarioValueLabels);
+    });
+
+    renderSavedScenarios();
+    updateScenarioValueLabels();
+    runScenarioSimulation();
+
+    const speciesRiskCanvas = document.getElementById("speciesRiskChart");
+    if (speciesRiskCanvas && speciesLabels.length > 0) {
+        const speciesRiskContext = speciesRiskCanvas.getContext("2d");
+        speciesRiskCanvas.chartInstance = new Chart(speciesRiskContext, {
+            type: "bar",
+            data: {
+                labels: speciesLabels,
+                datasets: [{
+                    label: "Risk Score",
+                    data: speciesScores,
+                    borderColor: "#0f766e",
+                    backgroundColor: "rgba(15, 118, 110, 0.25)",
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: "top" } },
+                scales: {
+                    x: { min: 0, max: 100, grid: { color: "rgba(148, 163, 184, 0.12)" } },
+                    y: { grid: { color: "rgba(148, 163, 184, 0.12)" } }
+                }
+            }
+        });
+    }
+
+    window.addEventListener("live-data-update", (event) => {
+        const payload = event.detail || {};
+        if (payload.stream_error) return;
+
+        const envSst = document.getElementById("envSstValue");
+        const envChl = document.getElementById("envChlValue");
+        const envO2 = document.getElementById("envO2Value");
+        const envSalinity = document.getElementById("envSalinityValue");
+        const envSstZ = document.getElementById("envSstZ");
+        const envChlZ = document.getElementById("envChlZ");
+        const envO2Z = document.getElementById("envO2Z");
+        const envSalinityZ = document.getElementById("envSalinityZ");
+
+        if (payload.env_actuals) {
+            if (envSst) envSst.textContent = `${payload.env_actuals.sst.value} ${payload.env_actuals.sst.unit}`;
+            if (envChl) envChl.textContent = `${payload.env_actuals.chl.value} ${payload.env_actuals.chl.unit}`;
+            if (envO2) envO2.textContent = `${payload.env_actuals.o2.value} ${payload.env_actuals.o2.unit}`;
+            if (envSalinity) envSalinity.textContent = `${payload.env_actuals.salinity.value} ${payload.env_actuals.salinity.unit}`;
+        }
+
+        if (payload.env_inputs) {
+            if (envSstZ) envSstZ.textContent = `(z = ${payload.env_inputs.sst_z})`;
+            if (envChlZ) envChlZ.textContent = `(z = ${payload.env_inputs.chl_z})`;
+            if (envO2Z) envO2Z.textContent = `(z = ${payload.env_inputs.o2_z})`;
+            if (envSalinityZ) envSalinityZ.textContent = `(z = ${payload.env_inputs.salinity_z})`;
+        }
+
+        if (payload.ecosystem_prediction) {
+            renderLiveForecast(payload.ecosystem_prediction);
+        }
+
+        if (comparisonBody && Array.isArray(payload.species_comparison_rows)) {
+            comparisonBody.innerHTML = payload.species_comparison_rows
+                .map((row) => {
+                    let changeLabel = "➖ 0.0%";
+                    let changeClass = "";
+
+                    if (row.change_direction === "up") {
+                        changeLabel = `🔺 +${row.change_abs}%`;
+                        changeClass = "change-up";
+                    } else if (row.change_direction === "down") {
+                        changeLabel = `🔻 -${row.change_abs}%`;
+                        changeClass = "change-down";
+                    }
+
+                    return `<tr><td>${row.species}</td><td>${row.current}%</td><td>${row.predicted}%</td><td class="change-cell ${changeClass}">${changeLabel}</td></tr>`;
+                })
+                .join("");
+        }
+
+        if (comparisonInsight && payload.species_change_insight) {
+            comparisonInsight.textContent = payload.species_change_insight;
+        }
+    });
+</script>
+{% endblock %}

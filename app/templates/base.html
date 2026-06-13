@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title or 'Marine Ecosystem Monitoring' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay active" aria-live="polite" aria-busy="true">
+        <div class="spinner"></div>
+        <p>Loading monitoring intelligence...</p>
+    </div>
+
+    <nav class="top-nav">
+        <div class="nav-inner">
+            <a href="{{ url_for('home') }}" class="nav-brand" data-nav>🌊 Marine Risk System</a>
+            <div class="nav-links">
+                <a href="{{ url_for('home') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" data-nav>Dashboard</a>
+                <a href="{{ url_for('forecast_page') }}" class="nav-link {% if active_page == 'forecast' %}active{% endif %}" data-nav>Forecast</a>
+                <a href="{{ url_for('analytics_page') }}" class="nav-link {% if active_page == 'analytics' %}active{% endif %}" data-nav>Analytics</a>
+                <a href="{{ url_for('explainability_page') }}" class="nav-link {% if active_page == 'explainability' %}active{% endif %}" data-nav>Explainability</a>
+                <a href="{{ url_for('home') }}#notificationCenter" class="nav-link nav-alert-link" data-nav>
+                    Alerts
+                    {% if notification_count %}
+                    <span class="nav-alert-badge">{{ notification_count }}</span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>🌊 Multi-Species Marine Risk Intelligence System</h1>
+           
+        </header>
+
+        {% if error_message %}
+        <section class="error-banner">
+            {{ error_message }}
+        </section>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+
+       
+    </main>
+
+    <script>
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const hideLoading = () => loadingOverlay.classList.remove("active");
+
+        const scrollToHashTarget = (hashValue) => {
+            if (!hashValue) {
+                return;
+            }
+
+            const targetElement = document.querySelector(hashValue);
+            if (!targetElement) {
+                return;
+            }
+
+            targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+            if (typeof targetElement.focus === "function") {
+                targetElement.setAttribute("tabindex", "-1");
+                targetElement.focus({ preventScroll: true });
+            }
+        };
+
+        window.addEventListener("load", hideLoading);
+        document.addEventListener("DOMContentLoaded", hideLoading);
+
+        if (window.location.hash) {
+            window.requestAnimationFrame(() => scrollToHashTarget(window.location.hash));
+        }
+
+        document.querySelectorAll("form").forEach((formElement) => {
+            formElement.addEventListener("submit", () => {
+                loadingOverlay.classList.add("active");
+            });
+        });
+
+        document.querySelectorAll("a[data-nav]").forEach((linkElement) => {
+            linkElement.addEventListener("click", (event) => {
+                const linkUrl = new URL(linkElement.href, window.location.href);
+                const samePageAnchor = linkUrl.pathname === window.location.pathname && linkUrl.hash;
+
+                if (samePageAnchor) {
+                    event.preventDefault();
+                    hideLoading();
+                    window.history.replaceState(null, "", linkUrl.hash);
+                    scrollToHashTarget(linkUrl.hash);
+                    return;
+                }
+
+                loadingOverlay.classList.add("active");
+            });
+        });
+
+        const latestUpdateElement = document.getElementById("latestUpdateValue");
+        const recordCountElement = document.getElementById("recordCountValue");
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="live-parameter-grid" id="liveParameterGrid">
+    <article class="live-parameter-card" data-param-key="sst">
+        <span class="live-parameter-label">🌡 SST</span>
+        <span class="live-parameter-value" id="paramSstValue">{{ live_parameters.sst.value }} {{ live_parameters.sst.unit }} {{ live_parameters.sst.arrow }}</span>
+    </article>
+    <article class="live-parameter-card" data-param-key="chlorophyll">
+        <span class="live-parameter-label">🟢 Chlorophyll</span>
+        <span class="live-parameter-value" id="paramChlValue">{{ live_parameters.chlorophyll.value }} {{ live_parameters.chlorophyll.unit }} {{ live_parameters.chlorophyll.arrow }}</span>
+    </article>
+    <article class="live-parameter-card" data-param-key="oxygen">
+        <span class="live-parameter-label">💧 Oxygen</span>
+        <span class="live-parameter-value" id="paramO2Value">{{ live_parameters.oxygen.value }} {{ live_parameters.oxygen.unit }} {{ live_parameters.oxygen.arrow }}</span>
+    </article>
+    <article class="live-parameter-card" data-param-key="salinity">
+        <span class="live-parameter-label">🌊 Salinity</span>
+        <span class="live-parameter-value" id="paramSalinityValue">{{ live_parameters.salinity.value }} {{ live_parameters.salinity.unit }} {{ live_parameters.salinity.arrow }}</span>
+    </article>
+</section>
+
+<section class="kpi-grid">
+    <article class="kpi-card">
+        <span class="kpi-label">Current MEHI</span>
+        <span class="kpi-value" id="kpiMehi">{{ mehi }}</span>
+        <span class="kpi-subtext">{{ current_month }}</span>
+    </article>
+
+    <article class="kpi-card">
+        <span class="kpi-label">Alert Level</span>
+        <span class="kpi-value" id="kpiAlert">{{ alert }}</span>
+    </article>
+
+    <article class="kpi-card">
+        <span class="kpi-label">Climate Trend</span>
+        <span class="kpi-value" id="kpiTrend">{{ climate_trend }}</span>
+    </article>
+</section>
+
+<section class="alert-card {{ alert_class }}" id="dashboardAlertCard">
+    <h2>Current Ecosystem Alert</h2>
+    <p id="dashboardAlertText">{{ alert }}</p>
+</section>
+
+<section class="panel notification-panel" id="notificationCenter">
+    <div class="panel-title-row notification-header-row">
+        <div>
+            <h2>Alert Notifications</h2>
+            <p class="panel-note">Threshold-based warnings from MEHI, bloom risk, and oxygen stress.</p>
+        </div>
+        <div class="notification-actions">
+            <span class="notification-count-pill">{{ notification_count }} active</span>
+            <a class="report-export-btn" href="{{ url_for('download_latest_report_csv') }}">Download CSV Report</a>
+        </div>
+    </div>
+    <div class="notification-grid">
+        {% for item in notifications %}
+        <article class="notification-card {{ item.badge_class }}">
+            <div class="notification-card-head">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.level }}</span>
+            </div>
+            <p>{{ item.message }}</p>
+            <div class="notification-card-foot">
+                <span>{{ item.source }}</span>
+                <span>{{ item.timestamp }}</span>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-title-row">
+        <h2>MEHI Trend (Actual vs Predicted)</h2>
+    </div>
+    <p class="panel-note">Blue line = actual observations. Orange line = model-generated forecast.</p>
+    <canvas id="mehiTrendChart"></canvas>
+    <p class="trend-insight" id="trendInsightText">{{ trend_insight }}</p>
+</section>
+
+<section class="panel">
+    <div class="panel-title-row">
+        <h2>Environmental Risk Indicators</h2>
+    </div>
+    <div class="risk-mini-legend" aria-label="Risk levels legend">
+        <span class="risk-mini-item">🟢 LOW</span>
+        <span class="risk-mini-item">🟡 MODERATE</span>
+        <span class="risk-mini-item">🔴 HIGH</span>
+    </div>
+    <div class="indicator-grid">
+        <article class="intel-card indicator-risk-card">
+            <span class="intel-label">🌿 Bloom Risk</span>
+            <span class="intel-value risk-level risk-level-{{ ecosystem_indicators.bloom_status | lower }}" id="bloomStatusValue">{{ ecosystem_indicators.bloom_status }}</span>
+            <span class="intel-subtext">Chlorophyll: <strong>{{ live_parameters.chlorophyll.value }} {{ live_parameters.chlorophyll.unit }}</strong></span>
+            <span class="intel-subtext">Status: <strong>
+                {% if ecosystem_indicators.bloom_status == "LOW" %}
+                    Stable (Optimal Conditions)
+                {% elif ecosystem_indicators.bloom_status == "MODERATE" %}
+                    Elevated (Watch Conditions)
+                {% else %}
+                    High Alert (Bloom Likely)
+                {% endif %}
+            </strong></span>
+        </article>
+        <article class="intel-card indicator-risk-card">
+            <span class="intel-label">🧪 Oxygen Depletion (Hypoxia)</span>
+            <span class="intel-value risk-level risk-level-{{ ecosystem_indicators.hypoxia_status | lower }}" id="hypoxiaStatusValue">{{ ecosystem_indicators.hypoxia_status }}</span>
+            <span class="intel-subtext">Oxygen: <strong>{{ live_parameters.oxygen.value }} {{ live_parameters.oxygen.unit }}</strong></span>
+            <span class="intel-subtext">Status: <strong>
+                {% if ecosystem_indicators.hypoxia_status == "LOW" %}
+                    Stable (Optimal Conditions)
+                {% elif ecosystem_indicators.hypoxia_status == "MODERATE" %}
+                    Elevated (Watch Conditions)
+                {% else %}
+                    High Alert (Depletion Risk)
+                {% endif %}
+            </strong></span>
+        </article>
+        <article class="intel-card">
+            <span class="intel-label">💧 Water Quality Index</span>
+            <span class="intel-value" id="wqiScoreValue">{{ ecosystem_indicators.water_quality_index }}</span>
+            <span class="intel-subtext wqi-condition wqi-{{ ecosystem_indicators.wqi_status | lower }}" id="wqiConditionValue">Condition: {{ ecosystem_indicators.wqi_status }}</span>
+            <span class="intel-subtext">WQI summarizes bloom risk, hypoxia pressure, and salinity stress.</span>
+        </article>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-title-row">
+        <h2>Recent Data Log</h2>
+    </div>
+    <div class="log-table-wrap">
+        <table class="live-log-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>SST</th>
+                    <th>Oxygen</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
+            <tbody id="liveLogBody">
+                {% for row in live_log_rows %}
+                <tr>
+                    <td>{{ row.time }}</td>
+                    <td>{{ row.sst }}</td>
+                    <td>{{ row.o2 }}</td>
+                    <td>{{ row.risk }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const trendLabels = JSON.parse('{{ trend_labels | tojson | safe }}');
+    const trendActualValues = JSON.parse('{{ trend_actual_values | tojson | safe }}');
+    const trendForecastValues = JSON.parse('{{ trend_forecast_values | tojson | safe }}');
+
+    const chartContext = document.getElementById("mehiTrendChart").getContext("2d");
+    const mehiTrendChart = new Chart(chartContext, {
+        type: "line",
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: "Actual MEHI",
+                data: trendActualValues,
+                borderColor: "#1d4ed8",
+                backgroundColor: "rgba(29, 78, 216, 0.08)",
+                borderWidth: 3,
+                fill: false,
+                tension: 0.35,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            }, {
+                label: "Predicted MEHI (Forecast)",
+                data: trendForecastValues,
+                borderColor: "#ea580c",
+                backgroundColor: "rgba(234, 88, 12, 0.12)",
+                borderWidth: 3,
+                borderDash: [6, 4],
+                fill: false,
+                tension: 0.35,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: "top" }
+            },
+            scales: {
+                x: {
+                    grid: { color: "rgba(148, 163, 184, 0.16)" },
+                    ticks: { maxRotation: 15, minRotation: 0 },
+                    title: { display: true, text: "Month" }
+                },
+                y: {
+                    grid: { color: "rgba(148, 163, 184, 0.16)" },
+                    beginAtZero: false,
+                    title: { display: true, text: "MEHI score" }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel intelligence-panel">
+    <h2>Intelligence Layer</h2>
+    <div class="intelligence-grid">
+        <article class="intel-card">
+            <span class="intel-label">Total Critical Months</span>
+            <span class="intel-value" id="criticalMonthsValue">{{ critical_months_total }}</span>
+        </article>
+        <article class="intel-card">
+            <span class="intel-label">Avg Critical per Year</span>
+            <span class="intel-value" id="avgCriticalValue">{{ avg_critical_per_year }}</span>
+        </article>
+        <article class="intel-card">
+            <span class="intel-label">Climate Shift (5Y vs 5Y)</span>
+            <span class="intel-value {{ 'shift-up' if climate_shift_delta > 0 else 'shift-down' if climate_shift_delta < 0 else '' }}" id="climateShiftValue">
+                {{ climate_shift_direction }} {% if climate_shift_delta >= 0 %}+{% endif %}{{ climate_shift_delta }}
+            </span>
+            <span class="intel-subtext" id="climateShiftSubtext">Early: {{ early_5_mean }} · Recent: {{ recent_5_mean }}</span>
+        </article>
+        <article class="intel-card">
+            <span class="intel-label">Anomaly Count Summary</span>
+            <span class="intel-value" id="anomalyCountValue">{{ anomaly_count }}</span>
+            <span class="intel-subtext">Months with at least one anomaly signal</span>
+        </article>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-title-row">
+        <h2>Event Frequency per Year</h2>
+    </div>
+    <canvas id="eventFrequencyChart"></canvas>
+</section>
+
+<section class="panel">
+    <div class="panel-title-row">
+        <h2>Water Quality Index Trend</h2>
+    </div>
+    <canvas id="wqiTrendChart"></canvas>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const eventYearLabels = JSON.parse('{{ event_year_labels | tojson | safe }}');
+    const eventYearValues = JSON.parse('{{ event_year_values | tojson | safe }}');
+    const wqiTrendLabels = JSON.parse('{{ wqi_trend_labels | tojson | safe }}');
+    const wqiTrendValues = JSON.parse('{{ wqi_trend_values | tojson | safe }}');
+
+    const eventChartContext = document.getElementById("eventFrequencyChart").getContext("2d");
+    const eventFrequencyChart = new Chart(eventChartContext, {
+        type: "bar",
+        data: {
+            labels: eventYearLabels,
+            datasets: [{
+                label: "High-Risk Events",
+                data: eventYearValues,
+                borderColor: "#1e3a8a",
+                backgroundColor: "rgba(30, 58, 138, 0.22)",
+                borderWidth: 1.5,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: true, position: "top", labels: { font: { size: 14 } } },
+                tooltip: { titleFont: { size: 13 }, bodyFont: { size: 12 } }
+            },
+            scales: {
+                x: {
+                    grid: { color: "rgba(148, 163, 184, 0.12)" },
+                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 13 } },
+                    title: { display: true, text: "Year", font: { size: 13, weight: "bold" } }
+                },
+                y: {
+                    grid: { color: "rgba(148, 163, 184, 0.12)" },
+                    beginAtZero: true,
+                    ticks: { font: { size: 12 } },
+                    title: { display: true, text: "Events", font: { size: 13, weight: "bold" } }
+                }
+            }
+        }
+    });
+
+    const wqiChartContext = document.getElementById("wqiTrendChart").getContext("2d");
+    const wqiTrendChart = new Chart(wqiChartContext, {
+        type: "line",
+        data: {
+            labels: wqiTrendLabels,
+            datasets: [{
+                label: "Water Quality Index",
+                data: wqiTrendValues,
+                borderColor: "#0f766e",
+                backgroundColor: "rgba(15, 118, 110, 0.15)",
+                borderWidth: 2,
+                fill: true,
+                tension: 0.25,
+                pointRadius: 2,
+                pointHoverRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: true, position: "top", labels: { font: { size: 14 } } },
+                tooltip: { titleFont: { size: 13 }, bodyFont: { size: 12 } }
+            },
+            scales: {
+                x: {
+                    grid: { color: "rgba(148, 163, 184, 0.12)" },
+                    ticks: { maxRotation: 25, minRotation: 0, font: { size: 12 } },
+                    title: { display: true, text: "Date", font: { size: 13, weight: "bold" } }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    grid: { color: "rgba(148, 163, 184, 0.12)" },
+                    ticks: { font: { size: 12 } },
+                    title: { display: true, text: "Water Quality Index", font: { size: 13, weight: "bold" } }
+                }
+            }
+        }
+    });
+
+    window.addEventListener("live-data-update", (event) => {
+        const payload = event.detail || {};
+        if (payload.stream_error) return;
+
+        const criticalMonthsElement = document.getElementById("criticalMonthsValue");
+        const avgCriticalElement = document.getElementById("avgCriticalValue");
+        const climateShiftElement = document.getElementById("climateShiftValue");
+        const climateShiftSubElement = document.getElementById("climateShiftSubtext");
+        const anomalyCountElement = document.getElementById("anomalyCountValue");
+
+        if (typeof payload.critical_months_total !== "undefined" && criticalMonthsElement) {
+            criticalMonthsElement.textContent = payload.critical_months_total;
+        }
+
+        if (typeof payload.avg_critical_per_year !== "undefined" && avgCriticalElement) {
+            avgCriticalElement.textContent = payload.avg_critical_per_year;
+        }
+
+        if (typeof payload.anomaly_count !== "undefined" && anomalyCountElement) {
+            anomalyCountElement.textContent = payload.anomaly_count;
+        }
+
+        if (climateShiftElement && typeof payload.climate_shift_delta !== "undefined") {
+            const sign = payload.climate_shift_delta >= 0 ? "+" : "";
+            climateShiftElement.textContent = `${payload.climate_shift_direction} ${sign}${payload.climate_shift_delta}`;
+            climateShiftElement.classList.remove("shift-up", "shift-down");
+            if (payload.climate_shift_delta > 0) climateShiftElement.classList.add("shift-up");
+            if (payload.climate_shift_delta < 0) climateShiftElement.classList.add("shift-down");
+        }
+
+        if (climateShiftSubElement) {
+            climateShiftSubElement.textContent = `Early: ${payload.early_5_mean} · Recent: ${payload.recent_5_mean}`;
+        }
+
+        if (payload.event_year_labels && payload.event_year_values) {
+            eventFrequencyChart.data.labels = payload.event_year_labels;
+            eventFrequencyChart.data.datasets[0].data = payload.event_year_values;
+            eventFrequencyChart.update();
+        }
+
+        if (payload.wqi_trend_labels && payload.wqi_trend_values) {
+            wqiTrendChart.data.labels = payload.wqi_trend_labels;
+            wqiTrendChart.data.datasets[0].data = payload.wqi_trend_values;
+            wqiTrendChart.update();
+        }
+    });
+</script>
+{% endblock %}

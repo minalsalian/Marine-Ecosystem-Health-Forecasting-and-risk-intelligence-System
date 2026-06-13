@@ -1,0 +1,42 @@
+{
+  "feature_columns": [
+    "chl",
+    "o2",
+    "sst",
+    "salinity"
+  ],
+  "window_size": 3,
+  "model_type": "RandomForestRegressor",
+  "one_month": {
+    "train_mae": 2.1382010157094093,
+    "test_mae": 5.2082501204805025,
+    "train_r2": 0.9799684427246017,
+    "test_r2": 0.8635134272398894,
+    "target_min": 14.122860274082768,
+    "target_max": 99.91944752881336,
+    "pred_test_min": 21.481352698210202,
+    "pred_test_max": 62.043546538792384,
+    "train_samples": 92,
+    "test_samples": 23
+  },
+  "three_month": {
+    "train_mae": 2.9265570969553325,
+    "test_mae": 12.135554558054807,
+    "train_r2": 0.9625487509162468,
+    "test_r2": 0.4166795729551309,
+    "target_min": 14.122860274082768,
+    "target_max": 99.91944752881336,
+    "pred_test_min": 24.93855421295558,
+    "pred_test_max": 78.77307131673368,
+    "train_samples": 90,
+    "test_samples": 23
+  },
+  "environment_one_month": {
+    "train_mae": 0.14286715143154483,
+    "test_mae": 0.4456514631458583,
+    "train_r2": 0.8925013043150192,
+    "test_r2": 0.28246021199126237,
+    "train_samples": 91,
+    "test_samples": 23
+  }
+}

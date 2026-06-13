@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel explain-panel">
+    <h2>Explainability Layer</h2>
+    <p class="top-driver-badge" id="topDriverBadge">🔥 {{ top_driver_badge }}</p>
+    <p class="explain-subtitle">SHAP Summary (1-Month vs 3-Month Contribution Share)</p>
+    <p class="explain-source">Method: {{ shap_source_label }}</p>
+    <canvas id="shapSummaryChart"></canvas>
+
+    <p class="mini-summary" id="nonTechnicalSummary">{{ non_technical_summary }}</p>
+
+    <h3>Top 5 Important Features</h3>
+    <div class="top-feature-table" id="topFeatureTable">
+        <div class="table-head">Feature</div>
+        <div class="table-head">1-Month (%)</div>
+        <div class="table-head">3-Month (%)</div>
+        <div class="table-head">Comparison</div>
+
+        {% for item in top_features %}
+        <div><span title="{{ item.tooltip }}">{{ item.friendly_name }}</span></div>
+        <div>{{ item.importance_1m }}</div>
+        <div>{{ item.importance_3m }}</div>
+        <div>{{ item.comparison }}</div>
+        {% endfor %}
+    </div>
+
+    <p class="explain-text" id="explainTextValue">{{ explain_text }}</p>
+    <p class="explain-text" id="impactSummaryText">{{ impact_summary_text }}</p>
+
+    <h3>Impact on Prediction</h3>
+    <div class="impact-table" id="impactTable">
+        <div class="table-head">Feature</div>
+        <div class="table-head">Contribution</div>
+        <div class="table-head">Impact</div>
+        <div class="table-head">Risk Impact</div>
+
+        {% for item in impact_on_prediction %}
+        <div><span title="{{ item.tooltip }}">{{ item.friendly_name }}</span></div>
+        <div>{{ item.contribution }}%</div>
+        <div>{{ item.impact_arrow }}</div>
+        <div>{{ item.impact_text }}</div>
+        {% endfor %}
+    </div>
+
+    <p class="explain-text">
+        Environmental indicators derive from chlorophyll, oxygen, and salinity patterns to monitor bloom risk, hypoxia events, and overall water quality.
+    </p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const shapFeatureLabels = JSON.parse('{{ shap_feature_labels | tojson | safe }}');
+    const shapImportance1m = JSON.parse('{{ shap_importance_1m | tojson | safe }}');
+    const shapImportance3m = JSON.parse('{{ shap_importance_3m | tojson | safe }}');
+
+    const shapChartContext = document.getElementById("shapSummaryChart").getContext("2d");
+    const shapSummaryChart = new Chart(shapChartContext, {
+        type: "bar",
+        data: {
+            labels: shapFeatureLabels,
+            datasets: [
+                {
+                    label: "1-Month Importance",
+                    data: shapImportance1m,
+                    borderColor: "#1d4ed8",
+                    backgroundColor: "rgba(29, 78, 216, 0.25)",
+                    borderWidth: 1.2,
+                    borderRadius: 4
+                },
+                {
+                    label: "3-Month Importance",
+                    data: shapImportance3m,
+                    borderColor: "#7c3aed",
+                    backgroundColor: "rgba(124, 58, 237, 0.25)",
+                    borderWidth: 1.2,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { 
+                    display: true, 
+                    position: "top",
+                    labels: { font: { size: 13 }, padding: 15 }
+                },
+                tooltip: { titleFont: { size: 13 }, bodyFont: { size: 12 } }
+            },
+            scales: {
+                x: {
+                    grid: { color: "rgba(148, 163, 184, 0.1)" },
+                    ticks: { 
+                        maxRotation: 45, 
+                        minRotation: 45,
+                        font: { size: 12 }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "rgba(148, 163, 184, 0.1)" },
+                    max: 100,
+                    ticks: { font: { size: 12 } },
+                    title: { 
+                        display: true, 
+                        text: "Contribution share (%)",
+                        font: { size: 13, weight: "bold" }
+                    }
+                }
+            }
+        }
+    });
+
+    window.addEventListener("live-data-update", (event) => {
+        const payload = event.detail || {};
+        if (payload.stream_error) return;
+
+        if (payload.shap_feature_labels && payload.shap_importance_1m && payload.shap_importance_3m) {
+            shapSummaryChart.data.labels = payload.shap_feature_labels;
+            shapSummaryChart.data.datasets[0].data = payload.shap_importance_1m;
+            shapSummaryChart.data.datasets[1].data = payload.shap_importance_3m;
+            shapSummaryChart.update();
+        }
+
+        const explainTextElement = document.getElementById("explainTextValue");
+        if (explainTextElement && payload.explain_text) {
+            explainTextElement.textContent = payload.explain_text;
+        }
+
+        const topDriverBadge = document.getElementById("topDriverBadge");
+        if (topDriverBadge && payload.top_driver_badge) {
+            topDriverBadge.textContent = `🔥 ${payload.top_driver_badge}`;
+        }
+
+        const summaryElement = document.getElementById("nonTechnicalSummary");
+        if (summaryElement && payload.non_technical_summary) {
+            summaryElement.textContent = payload.non_technical_summary;
+        }
+
+        const tableElement = document.getElementById("topFeatureTable");
+        if (tableElement && Array.isArray(payload.top_features)) {
+            const headerHtml = `
+                <div class="table-head">Feature</div>
+                <div class="table-head">1-Month (%)</div>
+                <div class="table-head">3-Month (%)</div>
+                <div class="table-head">Comparison</div>
+            `;
+            const rowHtml = payload.top_features.map((item) => `
+                <div><span title="${item.tooltip || ''}">${item.friendly_name || item.name}</span></div>
+                <div>${item.importance_1m}</div>
+                <div>${item.importance_3m}</div>
+                <div>${item.comparison}</div>
+            `).join("");
+            tableElement.innerHTML = headerHtml + rowHtml;
+        }
+
+        const impactSummaryElement = document.getElementById("impactSummaryText");
+        if (impactSummaryElement && payload.impact_summary_text) {
+            impactSummaryElement.textContent = payload.impact_summary_text;
+        }
+
+        const impactElement = document.getElementById("impactTable");
+        if (impactElement && Array.isArray(payload.impact_on_prediction)) {
+            const impactHeader = `
+                <div class="table-head">Feature</div>
+                <div class="table-head">Contribution</div>
+                <div class="table-head">Impact</div>
+                <div class="table-head">Risk Impact</div>
+            `;
+            const impactRows = payload.impact_on_prediction
+                .map((item) => `
+                    <div><span title="${item.tooltip || ''}">${item.friendly_name || item.name}</span></div>
+                    <div>${item.contribution}%</div>
+                    <div>${item.impact_arrow || '→ Neutral'}</div>
+                    <div>${item.impact_text}</div>
+                `)
+                .join("");
+            impactElement.innerHTML = impactHeader + impactRows;
+        }
+    });
+</script>
+{% endblock %}
