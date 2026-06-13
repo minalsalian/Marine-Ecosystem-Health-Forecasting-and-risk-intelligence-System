@@ -322,7 +322,7 @@ Notes:
 
 
 ### Dashboard
-![Dashboard](docs/screenshots/dashboard1.png)
+![Dashboard](./docs/screenshots/dashboard1.png)
 ![Dashboard](docs/screenshots/dashboard2.png)
 
 ### Forecast
