@@ -236,6 +236,7 @@ Open:
 
 ```bash
 http://127.0.0.1:5000
+```
 
 ## Steps to Run the Project (Appendix)
 
@@ -300,7 +301,7 @@ Notes:
 - If ingestion should be token-protected, set `INGEST_TOKEN` as an environment variable and include the `X-INGEST-TOKEN` header in requests.
 - The app auto-loads model/scaler artifacts and will save them to `models/` if needed.
 
-```
+
 
 ## Project structure
 
