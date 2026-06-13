@@ -322,6 +322,7 @@ Notes:
 
 
 ### Dashboard
+![Dashboard](https://raw.githubusercontent.com/minalsalian/Marine-Ecosystem-Health-Forecasting-and-risk-intelligence-System/main/docs/screenshots/dashboard1.png)
 ![Dashboard](./docs/screenshots/dashboard1.png)
 ![Dashboard](docs/screenshots/dashboard2.png)
 
